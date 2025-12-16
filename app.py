@@ -348,22 +348,23 @@
 
 
 
-
-
 # =====================================
 #    VERSÃO COM EXPORTAÇÃO EM EXCEL
 # =====================================
 
 
+
 import pandas as pd
 import streamlit as st
-from io import BytesIO  # ADICIONAR ESTA LINHA NO TOPO
+from io import BytesIO
+
 
 
 
 # =====================================
 # 1. DEFINIÇÃO DOS PESOS DOS INDICADORES
 # =====================================
+
 
 
 PESOS_FIXOS = {
@@ -379,13 +380,16 @@ PESOS_FIXOS = {
 }
 
 
+
 CAMPOS_DESCONSIDERADOS = []
+
 
 
 
 # ===========================================
 # 2. FUNÇÃO AUXILIAR: CONVERTER VALOR PARA NÚMERO
 # ===========================================
+
 
 
 def converter_para_numero(valor):
@@ -425,9 +429,11 @@ def converter_para_numero(valor):
 
 
 
+
 # ===========================================
 # 3. FUNÇÃO PARA CALCULAR A NOTA POR LINHA
 # ===========================================
+
 
 
 def calcular_nota_com_redistribuicao(row):
@@ -436,9 +442,8 @@ def calcular_nota_com_redistribuicao(row):
     
     REGRAS:
     1. Campos NULL → Peso redistribuído
-    2. Campos com valor = 0 → SUBTRAI o peso (penalização)
+    2. Campos com valor = 0 → Contribuição ZERO (não soma, não subtrai)
     3. Campos com valor > 0 → MULTIPLICA (valor × peso)
-    4. QUALIFICACAO_TECNICA_UGB: Só penaliza se valor = 0
     """
     
     pesos_ativos = {
@@ -488,18 +493,11 @@ def calcular_nota_com_redistribuicao(row):
         rateio = proporcao * peso_total_redistribuir
         peso_final = peso_original + rateio
         
-        # REGRA ESPECIAL: QUALIFICACAO_TECNICA_UGB só penaliza se = 0
-        if nome_campo == 'QUALIFICACAO_TECNICA_UGB':
-            if valor_indicador == 0:
-                contribuicao = -peso_final
-            else:
-                contribuicao = valor_indicador * peso_final
+        # REGRA: Valor 0 não penaliza, apenas não contribui
+        if valor_indicador == 0:
+            contribuicao = 0
         else:
-            # REGRA GERAL
-            if valor_indicador == 0:
-                contribuicao = -peso_final
-            else:
-                contribuicao = valor_indicador * peso_final
+            contribuicao = valor_indicador * peso_final
         
         nota_ponderada += contribuicao
     
@@ -508,9 +506,11 @@ def calcular_nota_com_redistribuicao(row):
 
 
 
+
 # ============================================
 # 4. FUNÇÃO PARA LER CSV
 # ============================================
+
 
 
 def ler_csv_com_encoding_e_delimitador(uploaded_file):
@@ -566,9 +566,11 @@ def ler_csv_com_encoding_e_delimitador(uploaded_file):
 
 
 
+
 # ===========================================
 # 5. INTERFACE STREAMLIT
 # ===========================================
+
 
 
 st.set_page_config(
@@ -578,8 +580,10 @@ st.set_page_config(
 )
 
 
+
 st.title("📊 Calculadora de Nota Gerencial UGB")
 st.markdown("---")
+
 
 
 with st.expander("ℹ️ Como funciona o Cálculo da Nota"):
@@ -602,9 +606,8 @@ with st.expander("ℹ️ Como funciona o Cálculo da Nota"):
     ### ⚖️ Regras de Cálculo:
     
     1. **Campos NULL/vazios**: Peso redistribuído proporcionalmente
-    2. **Valor = 0**: PENALIZA (subtrai o peso final)
+    2. **Valor = 0**: Contribuição ZERO (não soma, não subtrai)
     3. **Valor > 0**: MULTIPLICA (valor × peso final)
-    4. **QUALIFICACAO_TECNICA_UGB**: Só penaliza se = 0
     
     ### 💡 Formato aceito:
     
@@ -614,11 +617,13 @@ with st.expander("ℹ️ Como funciona o Cálculo da Nota"):
     """)
 
 
+
 uploaded_file = st.file_uploader(
     "📂 Carregar arquivo CSV com as avaliações",
     type=['csv'],
     help="Aceita decimais com vírgula (2,5) ou ponto (2.5)"
 )
+
 
 
 if uploaded_file is not None:
@@ -674,7 +679,7 @@ if uploaded_file is not None:
             st.metric("Total de Avaliações", len(notas_validas))
     
     # ============================================
-    # EXPORTAÇÃO PARA EXCEL (XLSX) - MODIFICADO
+    # EXPORTAÇÃO PARA EXCEL (XLSX)
     # ============================================
     
     # Cria um buffer de bytes na memória
@@ -740,7 +745,6 @@ else:
         - Texto "NULL": tratado como NULL
         
         **Atenção:**
-        - Valor 0 = penalização (reduz nota)
+        - Valor 0 = contribuição zero (neutro)
         - Células vazias = peso redistribuído (não penaliza)
         """)
-
